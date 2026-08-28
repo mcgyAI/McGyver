@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: mcgyver
+    env: node
+    buildCommand: npm install
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: PORT
+        value: 4000
+      - key: KEEPALIVE_INTERVAL
+        value: 300
+      - key: ENABLE_BACKGROUND_LEARNING
+        value: true
+      - key: BACKGROUND_PROCESSING_INTERVAL
+        value: 600
+    plan: free

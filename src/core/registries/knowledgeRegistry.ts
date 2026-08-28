@@ -29,6 +29,10 @@ class KnowledgeRegistry {
     this.sources = sources;
   }
 
+  has(id: string): boolean {
+    return this.sources.some(source => source.id === id);
+  }
+
   search(query: string, limit = 3): KnowledgeSource[] {
     const terms = query.toLowerCase().split(/\W+/).filter(t => t.length > 2);
     if (terms.length === 0) return [];
