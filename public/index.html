@@ -1,596 +1,602 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Mc'Gyver</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-<style>
-  :root {
-    --bg: #0b0e14;
-    --panel: #12151c;
-    --panel-2: #171b24;
-    --border: #232838;
-    --text: #e7e9ee;
-    --text-dim: #8a90a2;
-    --accent: #d4a54a;
-    --accent-dim: #8a6f34;
-    --danger: #d4664a;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Inter', sans-serif;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-  header {
-    padding: 18px 24px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    flex-shrink: 0;
-  }
-  header h1 {
-    font-size: 18px;
-    letter-spacing: 0.02em;
-    margin: 0;
-    font-weight: 700;
-  }
-  header h1 span { color: var(--accent); }
-  header .status {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-  }
-  header .status.connected { color: var(--accent); }
-  main {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 320px;
-    min-height: 0;
-  }
-  @media (max-width: 760px) {
-    main { grid-template-columns: 1fr; }
-    .side-panel { display: none; }
-    .side-panel.open { display: flex; }
-  }
-  .chat-panel {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-  .messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-  .msg {
-    max-width: 70%;
-    padding: 10px 14px;
-    border-radius: 10px;
-    line-height: 1.5;
-    font-size: 14px;
-    white-space: pre-wrap;
-  }
-  .msg.user {
-    align-self: flex-end;
-    background: var(--accent-dim);
-    color: #fff;
-  }
-  .msg.assistant {
-    align-self: flex-start;
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-  }
-  .msg.system {
-    align-self: center;
-    color: var(--text-dim);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    background: none;
-  }
-  .composer {
-    border-top: 1px solid var(--border);
-    padding: 16px 24px;
-    display: flex;
-    gap: 10px;
-    flex-shrink: 0;
-  }
-  .composer input {
-    flex: 1;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px 14px;
-    color: var(--text);
-    font-family: inherit;
-    font-size: 14px;
-  }
-  .composer input:focus { outline: none; border-color: var(--accent-dim); }
-  button {
-    background: var(--accent);
-    color: #14100a;
-    border: none;
-    border-radius: 8px;
-    padding: 0 18px;
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-    font-family: inherit;
-  }
-  button:hover { filter: brightness(1.08); }
-  button:disabled { opacity: 0.5; cursor: default; }
-  button.ghost {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    font-weight: 500;
-  }
-  button.ghost.recording {
-    background: var(--danger);
-    border-color: var(--danger);
-    color: #fff;
-  }
-  .side-panel {
-    border-left: 1px solid var(--border);
-    background: var(--panel);
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-  .tabs {
-    display: flex;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  .tab {
-    flex: 1;
-    background: transparent;
-    border: none;
-    border-radius: 0;
-    color: var(--text-dim);
-    font-weight: 600;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    padding: 12px 0;
-  }
-  .tab.active {
-    color: var(--accent);
-    box-shadow: inset 0 -2px 0 var(--accent);
-  }
-  .tab-content {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    flex: 1;
-  }
-  .quick-add {
-    padding: 14px 18px;
-    display: flex;
-    gap: 8px;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  .quick-add input {
-    flex: 1;
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 8px 10px;
-    color: var(--text);
-    font-family: inherit;
-    font-size: 13px;
-  }
-  .item-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 12px 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .task-item {
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 9px 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-  }
-  .task-item .info { min-width: 0; }
-  .task-item .title { font-size: 13px; font-weight: 500; }
-  .task-item .meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
-  .task-item .done-btn {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    padding: 4px 9px;
-    font-size: 11px;
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-  .task-item .done-btn:hover { color: var(--accent); border-color: var(--accent-dim); }
-  .kb-form {
-    padding: 0 18px 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  .kb-form input, .kb-form textarea {
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 8px 10px;
-    color: var(--text);
-    font-family: inherit;
-    font-size: 13px;
-    resize: vertical;
-  }
-  .kb-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 12px 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .kb-item {
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 10px 12px;
-  }
-  .kb-item .title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
-  .kb-item .content {
-    font-size: 12px;
-    color: var(--text-dim);
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  .kb-empty, .task-empty { color: var(--text-dim); font-size: 12px; padding: 4px 0; }
-  .setup {
-    max-width: 420px;
-    margin: 80px auto;
-    padding: 28px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-  }
-  .setup h2 { margin-top: 0; font-size: 16px; }
-  .setup p { color: var(--text-dim); font-size: 13px; line-height: 1.6; }
-  .setup input {
-    width: 100%;
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 10px 12px;
-    color: var(--text);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
-    margin: 12px 0;
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mc'Gyver - Virtual Operational Robot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Share+Tech+Mono:wght@400;700&family=Rajdhani:wght@500;600;700&family=Roboto+Mono:wght@400;500&family=Fira+Code:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Primary Cyber Accents */
+            --evie-cyan:      #00f0ff;
+            --evie-teal:      #00b4d8;
+            
+            /* Alert & Critical Indicators */
+            --evie-crimson:   #ff3333;
+            --evie-amber:     #ffb703;
+            
+            /* Interface Backgrounds & Layers */
+            --hud-bg-solid:   #050f19;
+            --hud-bg-glass:   rgba(5, 15, 25, 0.6);
+            --hud-scanline:   rgba(0, 240, 255, 0.03);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--hud-bg-solid);
+            color: var(--evie-cyan);
+            font-family: 'Rajdhani', 'Roboto Mono', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* High-Tech Tactical HUD Container */
+        .evie-monitor-panel {
+            position: relative;
+            background: var(--hud-bg-glass);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            box-shadow: inset 0 0 20px rgba(0, 240, 255, 0.15), 
+                        0 0 15px rgba(5, 15, 25, 0.5);
+            backdrop-filter: blur(12px);
+            overflow: hidden;
+        }
+
+        /* Authentic Interactive Cyber Scanlines */
+        .evie-monitor-panel::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(var(--hud-scanline) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 4px, 6px 100%;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0.85;
+        }
+
+        /* Subtle Sci-Fi Glitch Flicker Effect */
+        @keyframes hudPulse {
+            0% { opacity: 0.98; }
+            50% { opacity: 1.0; }
+            100% { opacity: 0.98; }
+        }
+
+        .evie-hud-active {
+            animation: hudPulse 4s infinite ease-in-out;
+        }
+
+        /* Typography Styles */
+        .system-branding {
+            font-family: 'Orbitron', 'Share Tech Mono', sans-serif;
+            font-weight: 700;
+            font-size: 32px;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--evie-cyan);
+        }
+
+        .panel-title {
+            font-family: 'Rajdhani', 'Roboto Mono', monospace;
+            font-weight: 500;
+            font-size: 18px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--evie-teal);
+        }
+
+        .data-log {
+            font-family: 'Fira Code', 'JetBrains Mono', monospace;
+            font-weight: 400;
+            font-size: 12px;
+            font-variant-ligatures: normal;
+            line-height: 1.5;
+            color: var(--evie-cyan);
+        }
+
+        /* Main Container */
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: var(--hud-bg-glass);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            margin-bottom: 20px;
+        }
+
+        .top-bar .system-branding {
+            font-size: 24px;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--evie-cyan);
+            box-shadow: 0 0 10px var(--evie-cyan);
+        }
+
+        .status-indicator.warning {
+            background: var(--evie-amber);
+            box-shadow: 0 0 10px var(--evie-amber);
+        }
+
+        .status-indicator.critical {
+            background: var(--evie-crimson);
+            box-shadow: 0 0 10px var(--evie-crimson);
+        }
+
+        /* Grid Layout */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            padding: 20px;
+            min-height: 200px;
+        }
+
+        /* Chat Interface */
+        .chat-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .chat-panel {
+            min-height: 400px;
+        }
+
+        .chat-messages {
+            height: 300px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            padding: 10px;
+        }
+
+        .message {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-left: 2px solid var(--evie-cyan);
+            background: rgba(0, 240, 255, 0.05);
+        }
+
+        .message.user {
+            border-left-color: var(--evie-teal);
+        }
+
+        .message-content {
+            font-family: 'Fira Code', monospace;
+            font-size: 13px;
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            color: var(--evie-cyan);
+            padding: 10px;
+            font-family: 'Fira Code', monospace;
+        }
+
+        .chat-input button {
+            background: var(--evie-cyan);
+            color: var(--hud-bg-solid);
+            border: none;
+            padding: 10px 20px;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* Biometric Display */
+        .biometric-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .biometric-metric {
+            text-align: center;
+            padding: 15px;
+            background: rgba(0, 240, 255, 0.05);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+
+        .metric-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 28px;
+            color: var(--evie-cyan);
+        }
+
+        .metric-label {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 12px;
+            color: var(--evie-teal);
+            text-transform: uppercase;
+        }
+
+        /* Console Log */
+        .console-log {
+            height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            font-family: 'Fira Code', monospace;
+            font-size: 11px;
+        }
+
+        .console-log-entry {
+            margin: 2px 0;
+        }
+
+        .console-log-entry.critical {
+            color: var(--evie-crimson);
+        }
+
+        .console-log-entry.warning {
+            color: var(--evie-amber);
+        }
+
+        .console-log-entry.success {
+            color: var(--evie-teal);
+        }
+
+        /* Waveform Display */
+        .waveform-display {
+            height: 60px;
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            background: rgba(0, 240, 255, 0.05);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .waveform-line {
+            position: absolute;
+            bottom: 50%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--evie-cyan);
+            animation: waveformPulse 1s ease-in-out infinite;
+        }
+
+        @keyframes waveformPulse {
+            0%, 100% { transform: scaleY(1); }
+            50% { transform: scaleY(3); }
+        }
+
+        /* Critical Alert Overlay */
+        .critical-alert {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 51, 51, 0.9);
+            border: 2px solid var(--evie-crimson);
+            box-shadow: 0 0 30px rgba(255, 51, 51, 0.5);
+            padding: 30px;
+            z-index: 1000;
+            text-align: center;
+            min-width: 400px;
+        }
+
+        .critical-alert h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 36px;
+            color: var(--evie-crimson);
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            margin-bottom: 15px;
+        }
+
+        .critical-alert.active {
+            display: block;
+        }
+
+        /* Authentication Modal */
+        .auth-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(5, 15, 25, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .auth-panel {
+            padding: 40px;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .auth-panel input {
+            width: 100%;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            color: var(--evie-cyan);
+            padding: 15px;
+            font-family: 'Fira Code', monospace;
+            margin: 20px 0;
+        }
+
+        .auth-panel button {
+            background: var(--evie-cyan);
+            color: var(--hud-bg-solid);
+            border: none;
+            padding: 15px 40px;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
 </head>
-<body>
-
-<header>
-  <h1>Mc'<span>Gyver</span></h1>
-  <span class="status" id="statusLabel">not connected</span>
-</header>
-
-<div id="setupScreen" class="setup" style="display:none;">
-  <h2>Connect to Mc'Gyver</h2>
-  <p>Paste the OWNER_TOKEN from your <code>.env</code> file. It's saved in this browser only — nothing is sent anywhere except your own local server.</p>
-  <input id="tokenInput" type="password" placeholder="OWNER_TOKEN" />
-  <button id="saveTokenBtn" style="width:100%;">Connect</button>
-</div>
-
-<main id="appScreen" style="display:none;">
-  <div class="chat-panel">
-    <div class="messages" id="messages"></div>
-    <div class="composer">
-      <input id="chatInput" type="text" placeholder="Ask Mc'Gyver anything..." autocomplete="off" />
-      <button id="sendBtn">Send</button>
-      <button class="ghost" id="micBtn" title="Hold to talk">Mic</button>
-      <button class="ghost" id="togglePanelBtn" title="Tasks &amp; notes">Tasks &amp; notes</button>
-    </div>
-  </div>
-
-  <div class="side-panel" id="sidePanel">
-    <div class="tabs">
-      <button class="tab active" id="tabTasksBtn" data-tab="tasks">Tasks</button>
-      <button class="tab" id="tabNotesBtn" data-tab="notes">Notes</button>
+<body class="evie-hud-active">
+    <!-- Authentication Modal -->
+    <div class="auth-modal" id="authModal">
+        <div class="evie-monitor-panel auth-panel">
+            <div class="system-branding">Mc'GYVER</div>
+            <div class="panel-title" style="margin-top: 20px;">VIRTUAL OPERATIONAL ROBOT</div>
+            <div class="data-log" style="margin-top: 15px;">Enter your access token to initialize neuro-agent</div>
+            <input type="password" id="ownerToken" placeholder="OWNER_TOKEN">
+            <button onclick="authenticate()">INITIALIZE</button>
+        </div>
     </div>
 
-    <div class="tab-content" id="tasksTab">
-      <div class="quick-add">
-        <input id="taskTitle" type="text" placeholder="New task..." />
-        <button id="taskAddBtn">Add</button>
-      </div>
-      <div class="item-list" id="taskList"></div>
+    <!-- Critical Alert Overlay -->
+    <div class="critical-alert" id="criticalAlert">
+        <h2>CRITICAL ALERT</h2>
+        <div class="data-log" id="alertMessage">Physiological anomaly detected</div>
     </div>
 
-    <div class="tab-content" id="notesTab" style="display:none;">
-      <div class="kb-form">
-        <input id="kbTitle" type="text" placeholder="Title" />
-        <textarea id="kbContent" placeholder="Paste a note, fact, or document..." rows="4"></textarea>
-        <button id="kbAddBtn">Add to knowledge base</button>
-      </div>
-      <div class="kb-list" id="kbList"></div>
+    <!-- Main Interface -->
+    <div class="main-container hidden" id="mainInterface">
+        <!-- Top Bar -->
+        <div class="evie-monitor-panel top-bar">
+            <div class="system-branding">Mc'GYVER</div>
+            <div class="connection-status">
+                <div class="status-indicator" id="statusIndicator"></div>
+                <div class="data-log" id="connectionStatus">NEURO-AGENT ACTIVE</div>
+            </div>
+            <div class="data-log" id="systemClock">00:00:00</div>
+        </div>
+
+        <!-- Dashboard Grid -->
+        <div class="dashboard-grid">
+            <!-- Biometric Panel -->
+            <div class="evie-monitor-panel panel">
+                <div class="panel-title">BIOMETRIC TELEMETRY</div>
+                <div class="biometric-grid" style="margin-top: 15px;">
+                    <div class="biometric-metric">
+                        <div class="metric-value" id="heartRate">--</div>
+                        <div class="metric-label">HEART RATE (BPM)</div>
+                    </div>
+                    <div class="biometric-metric">
+                        <div class="metric-value" id="adrenaline">--</div>
+                        <div class="metric-label">ADRENALINE INDEX</div>
+                    </div>
+                </div>
+                <div class="waveform-display" style="margin-top: 15px;">
+                    <div class="waveform-line"></div>
+                </div>
+            </div>
+
+            <!-- System Status -->
+            <div class="evie-monitor-panel panel">
+                <div class="panel-title">NEURO-AGENT STATUS</div>
+                <div class="data-log" style="margin-top: 15px;">
+                    <div>PHYSICAL AWARENESS: <span style="color: var(--evie-cyan);">ACTIVE</span></div>
+                    <div>ENVIRONMENTAL SCANNING: <span style="color: var(--evie-cyan);">OPERATIONAL</span></div>
+                    <div>MEMORY CONSOLIDATION: <span style="color: var(--evie-teal);">RUNNING</span></div>
+                    <div>KEEPALIVE SYSTEM: <span style="color: var(--evie-cyan);">MONITORING</span></div>
+                </div>
+            </div>
+
+            <!-- Console Log -->
+            <div class="evie-monitor-panel panel">
+                <div class="panel-title">SYSTEM LOG</div>
+                <div class="console-log" id="consoleLog">
+                    <div class="console-log-entry success">[SYSTEM] Neuro-agent initialized</div>
+                    <div class="console-log-entry">[MEMORY] Knowledge base loaded</div>
+                    <div class="console-log-entry">[SCANNER] Environmental perception active</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Interface -->
+        <div class="chat-container">
+            <div class="evie-monitor-panel panel chat-panel">
+                <div class="panel-title">OPERATIONAL INTERFACE</div>
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message">
+                        <div class="message-content">Mc'Gyver neuro-agent online. Awaiting operational directives.</div>
+                    </div>
+                </div>
+                <div class="chat-input">
+                    <input type="text" id="chatInput" placeholder="Enter operational directive..." onkeypress="if(event.key === 'Enter') sendMessage()">
+                    <button onclick="sendMessage()">TRANSMIT</button>
+                </div>
+            </div>
+
+            <div class="evie-monitor-panel panel chat-panel">
+                <div class="panel-title">KNOWLEDGE BASE</div>
+                <div class="data-log" style="margin-top: 15px;">
+                    <div>Active Memory Items: <span id="memoryCount">0</span></div>
+                    <div>Task Queue: <span id="taskCount">0</span></div>
+                    <div>File Connectors: <span style="color: var(--evie-cyan);">files.list, files.read</span></div>
+                </div>
+                <div class="console-log" id="knowledgeLog" style="margin-top: 15px;">
+                    <div class="console-log-entry">[KNOWLEDGE] Registry hydrated</div>
+                    <div class="console-log-entry">[CONNECTOR] Files system registered</div>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-</main>
 
-<script>
-const API_BASE = window.location.origin;
-let TOKEN = localStorage.getItem('mcgyver_owner_token') || '';
+    <script>
+        const API_BASE = window.location.origin;
+        let ownerToken = localStorage.getItem('ownerToken');
 
-const el = id => document.getElementById(id);
+        // Check authentication on load
+        if (ownerToken) {
+            document.getElementById('authModal').classList.add('hidden');
+            document.getElementById('mainInterface').classList.remove('hidden');
+            initializeSystem();
+        }
 
-function headers() {
-  return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN };
-}
+        function authenticate() {
+            const token = document.getElementById('ownerToken').value;
+            if (token) {
+                localStorage.setItem('ownerToken', token);
+                ownerToken = token;
+                document.getElementById('authModal').classList.add('hidden');
+                document.getElementById('mainInterface').classList.remove('hidden');
+                initializeSystem();
+            }
+        }
 
-function addMessage(role, text) {
-  const div = document.createElement('div');
-  div.className = 'msg ' + role;
-  div.textContent = text;
-  el('messages').appendChild(div);
-  el('messages').scrollTop = el('messages').scrollHeight;
-}
+        function initializeSystem() {
+            updateClock();
+            setInterval(updateClock, 1000);
+            loadSystemStatus();
+            loadKnowledge();
+            setInterval(loadSystemStatus, 5000);
+        }
 
-async function sendChat() {
-  const input = el('chatInput');
-  const text = input.value.trim();
-  if (!text) return;
-  input.value = '';
-  addMessage('user', text);
-  el('sendBtn').disabled = true;
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('systemClock').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+        }
 
-  try {
-    const res = await fetch(API_BASE + '/chat', {
-      method: 'POST',
-      headers: headers(),
-      body: JSON.stringify({ message: text }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      addMessage('system', 'Error: ' + (data.error || res.status));
-      return;
-    }
-    addMessage('assistant', data.response);
-  } catch (e) {
-    addMessage('system', 'Could not reach Mc\'Gyver - is the server running?');
-  } finally {
-    el('sendBtn').disabled = false;
-    input.focus();
-  }
-}
+        async function loadSystemStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                document.getElementById('statusIndicator').className = 'status-indicator';
+                addLogEntry('[SYSTEM] Health check passed', 'success');
+            } catch (error) {
+                document.getElementById('statusIndicator').className = 'status-indicator warning';
+                addLogEntry('[SYSTEM] Health check failed', 'warning');
+            }
+        }
 
-async function loadKnowledge() {
-  try {
-    const res = await fetch(API_BASE + '/knowledge', { headers: headers() });
-    const data = await res.json();
-    const list = el('kbList');
-    list.innerHTML = '';
-    if (!data.sources || data.sources.length === 0) {
-      list.innerHTML = '<div class="kb-empty">Nothing added yet.</div>';
-      return;
-    }
-    data.sources.slice().reverse().forEach(s => {
-      const item = document.createElement('div');
-      item.className = 'kb-item';
-      item.innerHTML = '<div class="title"></div><div class="content"></div>';
-      item.querySelector('.title').textContent = s.title;
-      item.querySelector('.content').textContent = s.content;
-      list.appendChild(item);
-    });
-  } catch (e) { /* silent - chat still works without this */ }
-}
+        async function loadKnowledge() {
+            try {
+                const response = await fetch(`${API_BASE}/knowledge`, {
+                    headers: { 'Authorization': `Bearer ${ownerToken}` }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('memoryCount').textContent = data.knowledge.length;
+                }
+            } catch (error) {
+                console.error('Failed to load knowledge:', error);
+            }
+        }
 
-async function addKnowledge() {
-  const title = el('kbTitle').value.trim();
-  const content = el('kbContent').value.trim();
-  if (!title || !content) return;
-  el('kbAddBtn').disabled = true;
-  try {
-    const res = await fetch(API_BASE + '/knowledge', {
-      method: 'POST',
-      headers: headers(),
-      body: JSON.stringify({ title, content }),
-    });
-    if (res.ok) {
-      el('kbTitle').value = '';
-      el('kbContent').value = '';
-      loadKnowledge();
-    }
-  } finally {
-    el('kbAddBtn').disabled = false;
-  }
-}
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
 
-let mediaRecorder = null;
-let audioChunks = [];
+            // Add user message to chat
+            addChatMessage(message, 'user');
+            input.value = '';
 
-async function startRecording() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
-    audioChunks = [];
-    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-    mediaRecorder.onstop = sendVoice;
-    mediaRecorder.start();
-    el('micBtn').classList.add('recording');
-    el('micBtn').textContent = 'Release';
-  } catch (e) {
-    addMessage('system', "Couldn't access the microphone - check browser permissions.");
-  }
-}
+            try {
+                const response = await fetch(`${API_BASE}/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${ownerToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message })
+                });
 
-function stopRecording() {
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    mediaRecorder.stop();
-    mediaRecorder.stream.getTracks().forEach(t => t.stop());
-  }
-  el('micBtn').classList.remove('recording');
-  el('micBtn').textContent = 'Mic';
-}
+                const data = await response.json();
+                if (data.success) {
+                    addChatMessage(data.response, 'system');
+                    addLogEntry('[CHAT] Directive processed', 'success');
+                } else {
+                    addChatMessage('Error: ' + (data.error || 'Unknown error'), 'system');
+                    addLogEntry('[CHAT] Directive failed', 'critical');
+                }
+            } catch (error) {
+                addChatMessage('Error: Could not communicate with neuro-agent', 'system');
+                addLogEntry('[CHAT] Communication error', 'critical');
+            }
+        }
 
-async function sendVoice() {
-  if (audioChunks.length === 0) return;
-  const blob = new Blob(audioChunks, { type: 'audio/webm' });
-  addMessage('system', 'Transcribing...');
-  const placeholder = el('messages').lastChild;
+        function addChatMessage(content, type) {
+            const container = document.getElementById('chatMessages');
+            const message = document.createElement('div');
+            message.className = `message ${type}`;
+            message.innerHTML = `<div class="message-content">${content}</div>`;
+            container.appendChild(message);
+            container.scrollTop = container.scrollHeight;
+        }
 
-  try {
-    const res = await fetch(API_BASE + '/voice', {
-      method: 'POST',
-      headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'audio/webm' },
-      body: blob,
-    });
-    placeholder.remove();
+        function addLogEntry(message, type = '') {
+            const container = document.getElementById('consoleLog');
+            const entry = document.createElement('div');
+            entry.className = `console-log-entry ${type}`;
+            entry.textContent = message;
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+        }
 
-    if (!res.ok) {
-      const data = await res.json();
-      addMessage('system', 'Voice error: ' + (data.error || res.status));
-      return;
-    }
+        // Simulate biometric data for demo
+        function simulateBiometrics() {
+            const heartRate = Math.floor(Math.random() * 30) + 70;
+            const adrenaline = (Math.random() * 0.5).toFixed(2);
+            
+            document.getElementById('heartRate').textContent = heartRate;
+            document.getElementById('adrenaline').textContent = adrenaline;
 
-    const transcript = decodeURIComponent(res.headers.get('X-Transcript') || '');
-    const replyText = decodeURIComponent(res.headers.get('X-Reply-Text') || '');
-    if (transcript) addMessage('user', transcript);
-    if (replyText) addMessage('assistant', replyText);
+            if (heartRate > 90) {
+                document.getElementById('statusIndicator').className = 'status-indicator warning';
+                addLogEntry(`[BIOMETRIC] Elevated heart rate: ${heartRate} BPM`, 'warning');
+            }
+        }
 
-    const audioBlob = await res.blob();
-    new Audio(URL.createObjectURL(audioBlob)).play();
-  } catch (e) {
-    placeholder.remove();
-    addMessage('system', "Could not reach Mc'Gyver for voice.");
-  }
-}
-
-async function loadTasks() {
-  try {
-    const res = await fetch(API_BASE + '/tasks', { headers: headers() });
-    const data = await res.json();
-    const list = el('taskList');
-    list.innerHTML = '';
-    const open = (data.tasks || []).filter(t => t.status === 'open');
-    if (open.length === 0) {
-      list.innerHTML = '<div class="task-empty">Nothing open right now.</div>';
-      return;
-    }
-    open.forEach(t => {
-      const item = document.createElement('div');
-      item.className = 'task-item';
-      const meta = [t.project, t.dueDate].filter(Boolean).join(' · ');
-      item.innerHTML = '<div class="info"><div class="title"></div><div class="meta"></div></div><button class="done-btn">Done</button>';
-      item.querySelector('.title').textContent = t.title;
-      item.querySelector('.meta').textContent = meta;
-      item.querySelector('.done-btn').addEventListener('click', () => completeTask(t.id));
-      list.appendChild(item);
-    });
-  } catch (e) { /* silent - chat still works without this */ }
-}
-
-async function addTask() {
-  const title = el('taskTitle').value.trim();
-  if (!title) return;
-  el('taskAddBtn').disabled = true;
-  try {
-    const res = await fetch(API_BASE + '/tasks', {
-      method: 'POST',
-      headers: headers(),
-      body: JSON.stringify({ title }),
-    });
-    if (res.ok) {
-      el('taskTitle').value = '';
-      loadTasks();
-    }
-  } finally {
-    el('taskAddBtn').disabled = false;
-  }
-}
-
-async function completeTask(id) {
-  await fetch(API_BASE + '/tasks/' + id + '/complete', { method: 'POST', headers: headers() });
-  loadTasks();
-}
-
-function switchTab(name) {
-  const isTasks = name === 'tasks';
-  el('tasksTab').style.display = isTasks ? 'flex' : 'none';
-  el('notesTab').style.display = isTasks ? 'none' : 'flex';
-  el('tabTasksBtn').classList.toggle('active', isTasks);
-  el('tabNotesBtn').classList.toggle('active', !isTasks);
-}
-
-async function checkConnection() {
-  try {
-    const res = await fetch(API_BASE + '/health');
-    const data = await res.json();
-    el('statusLabel').textContent = data.status === 'healthy' ? 'server online' : 'server issue';
-    if (data.status === 'healthy') el('statusLabel').classList.add('connected');
-  } catch (e) {
-    el('statusLabel').textContent = 'server unreachable';
-  }
-}
-
-function boot() {
-  checkConnection();
-  if (!TOKEN) {
-    el('setupScreen').style.display = 'block';
-    el('appScreen').style.display = 'none';
-    return;
-  }
-  el('setupScreen').style.display = 'none';
-  el('appScreen').style.display = 'grid';
-  addMessage('system', "Connected. Ask Mc'Gyver anything below.");
-  loadKnowledge();
-  loadTasks();
-}
-
-el('saveTokenBtn').addEventListener('click', () => {
-  const v = el('tokenInput').value.trim();
-  if (!v) return;
-  TOKEN = v;
-  localStorage.setItem('mcgyver_owner_token', v);
-  boot();
-});
-el('sendBtn').addEventListener('click', sendChat);
-el('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
-el('kbAddBtn').addEventListener('click', addKnowledge);
-el('taskAddBtn').addEventListener('click', addTask);
-el('taskTitle').addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
-el('togglePanelBtn').addEventListener('click', () => el('sidePanel').classList.toggle('open'));
-el('tabTasksBtn').addEventListener('click', () => switchTab('tasks'));
-el('tabNotesBtn').addEventListener('click', () => switchTab('notes'));
-el('micBtn').addEventListener('mousedown', startRecording);
-el('micBtn').addEventListener('mouseup', stopRecording);
-el('micBtn').addEventListener('mouseleave', () => { if (mediaRecorder && mediaRecorder.state === 'recording') stopRecording(); });
-el('micBtn').addEventListener('touchstart', e => { e.preventDefault(); startRecording(); });
-el('micBtn').addEventListener('touchend', e => { e.preventDefault(); stopRecording(); });
-
-boot();
-</script>
+        setInterval(simulateBiometrics, 3000);
+        simulateBiometrics();
+    </script>
 </body>
 </html>

@@ -1,274 +1,97 @@
 "use strict";
-// Biometric Processing Domain for Mc'Gyver + Evie Integration
-// Handles physiological monitoring, health assessment, and biometric data analysis
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.biometricProcessor = void 0;
 class BiometricProcessor {
     biometricHistory = [];
-    maxHistorySize = 200;
-    baselineHeartRate = 70; // Will be calibrated
-    stressThresholds = {
-        normal: 0.3,
-        elevated: 0.6,
-        stressed: 0.8,
-        critical: 0.9
-    };
-    // Process biometric data from smartwatch or sensors
-    async processBiometricData(rawData) {
-        const biometricData = {
-            heartRateBpm: rawData.heartRateBpm || 0,
-            adrenalineIndex: rawData.adrenalineIndex || 0,
-            galvanicSkinResponse: rawData.galvanicSkinResponse || 0,
-            velocityMps: rawData.velocityMps || 0,
-            gForceVector: rawData.gForceVector || { x: 0, y: 0, z: 0 },
-            timestamp: new Date()
+    maxHistorySize = 50;
+    baselineHeartRate = 72;
+    processBiometricData(data) {
+        const biometric = {
+            id: Date.now().toString(),
+            timestamp: new Date().toISOString(),
+            heartRateBpm: data.heartRateBpm || 0,
+            adrenalineIndex: data.adrenalineIndex || 0,
+            galvanicSkinResponse: data.galvanicSkinResponse || 0,
+            velocityMps: data.velocityMps || 0,
+            gForceVector: data.gForceVector || { x: 0, y: 0, z: 0 }
         };
-        // Store in history
-        this.addToHistory(biometricData);
-        // Update baseline if we have enough data
-        this.updateBaseline();
-        // Analyze current state
-        const analysis = this.analyzeBiometrics(biometricData);
-        if (analysis.currentStatus === 'critical') {
-            console.log(`[BIOMETRICS] CRITICAL STATUS: ${analysis.currentStatus}`);
-            console.log(`[BIOMETRICS] Alerts: ${analysis.healthAlerts.join(', ')}`);
-        }
-        return biometricData;
-    }
-    addToHistory(data) {
-        this.biometricHistory.push(data);
-        // Maintain history size
+        this.biometricHistory.push(biometric);
         if (this.biometricHistory.length > this.maxHistorySize) {
             this.biometricHistory.shift();
         }
+        console.log(`[BIOMETRIC] Heart rate: ${biometric.heartRateBpm} BPM, Adrenaline: ${biometric.adrenalineIndex}`);
+        return biometric;
     }
-    updateBaseline() {
-        if (this.biometricHistory.length < 30)
-            return; // Need at least 30 samples
-        // Calculate average heart rate from recent history (excluding elevated periods)
-        const recentNormal = this.biometricHistory.slice(-50)
-            .filter(data => data.heartRateBpm < 100)
-            .map(data => data.heartRateBpm);
-        if (recentNormal.length > 10) {
-            this.baselineHeartRate = recentNormal.reduce((sum, hr) => sum + hr, 0) / recentNormal.length;
+    analyzeBiometrics(biometric) {
+        const alerts = [];
+        let status = 'normal';
+        let stressLevel = 'low';
+        // Heart rate analysis
+        if (biometric.heartRateBpm > 130) {
+            status = 'critical';
+            stressLevel = 'severe';
+            alerts.push('Critical heart rate elevation detected');
         }
-    }
-    analyzeBiometrics(currentData) {
-        const heartRateAnalysis = this.analyzeHeartRate(currentData.heartRateBpm);
-        const stressAnalysis = this.analyzeStress(currentData);
-        const activityAnalysis = this.analyzeActivity(currentData);
-        const healthAlerts = this.generateHealthAlerts(currentData, heartRateAnalysis, stressAnalysis);
-        const recommendations = this.generateRecommendations(currentData, stressAnalysis, activityAnalysis);
-        // Determine overall status
-        let currentStatus = 'normal';
-        if (healthAlerts.some(alert => alert.includes('CRITICAL'))) {
-            currentStatus = 'critical';
+        else if (biometric.heartRateBpm > 100) {
+            status = 'elevated';
+            stressLevel = 'high';
+            alerts.push('Elevated heart rate detected');
         }
-        else if (healthAlerts.some(alert => alert.includes('WARNING'))) {
-            currentStatus = 'stressed';
+        else if (biometric.heartRateBpm > 85) {
+            status = 'elevated';
+            stressLevel = 'medium';
         }
-        else if (stressAnalysis > this.stressThresholds.elevated) {
-            currentStatus = 'elevated';
+        // Adrenaline analysis
+        if (biometric.adrenalineIndex > 0.7) {
+            if (stressLevel !== 'severe')
+                stressLevel = 'high';
+            alerts.push('High adrenaline levels detected');
+        }
+        // GSR analysis
+        if (biometric.galvanicSkinResponse > 5) {
+            alerts.push('Elevated galvanic skin response');
+        }
+        // Activity analysis
+        if (biometric.velocityMps > 10) {
+            alerts.push('High velocity movement detected');
         }
         return {
-            currentStatus,
-            heartRateTrend: heartRateAnalysis.trend,
-            stressLevel: stressAnalysis,
-            activityLevel: activityAnalysis,
-            healthAlerts,
-            recommendations
+            currentStatus: status,
+            heartRateTrend: this.calculateHeartRateTrend(),
+            healthAlerts: alerts,
+            stressLevel
         };
     }
-    analyzeHeartRate(currentHeartRate) {
-        const recent = this.biometricHistory.slice(-10);
-        const trend = this.calculateHeartRateTrend(recent);
-        const deviation = Math.abs(currentHeartRate - this.baselineHeartRate);
-        return {
-            current: currentHeartRate,
-            trend,
-            deviationFromBaseline: deviation
-        };
-    }
-    calculateHeartRateTrend(recent) {
-        if (recent.length < 3)
+    calculateHeartRateTrend() {
+        if (this.biometricHistory.length < 3)
             return 'stable';
-        const values = recent.map(d => d.heartRateBpm);
-        const changes = [];
-        for (let i = 1; i < values.length; i++) {
-            changes.push(values[i] - values[i - 1]);
-        }
-        const avgChange = changes.reduce((sum, change) => sum + change, 0) / changes.length;
-        const variance = changes.reduce((sum, change) => sum + Math.pow(change - avgChange, 2), 0) / changes.length;
+        const recent = this.biometricHistory.slice(-3);
+        const rates = recent.map(b => b.heartRateBpm);
+        if (rates[2] > rates[1] + 10 && rates[1] > rates[0] + 10)
+            return 'rising';
+        if (rates[2] < rates[1] - 10 && rates[1] < rates[0] - 10)
+            return 'falling';
+        const variance = Math.max(...rates) - Math.min(...rates);
         if (variance > 20)
             return 'irregular';
-        if (avgChange > 5)
-            return 'rising';
-        if (avgChange < -5)
-            return 'falling';
         return 'stable';
     }
-    analyzeStress(data) {
-        // Combined stress score from multiple indicators
-        const heartRateStress = Math.min(1, (data.heartRateBpm - this.baselineHeartRate) / 50);
-        const adrenalineStress = data.adrenalineIndex;
-        const gsrStress = Math.min(1, data.galvanicSkinResponse / 10);
-        // Weighted average
-        return (heartRateStress * 0.4) + (adrenalineStress * 0.4) + (gsrStress * 0.2);
+    getBiometricHistory(count) {
+        return this.biometricHistory.slice(-count);
     }
-    analyzeActivity(data) {
-        const velocity = data.velocityMps;
-        const gForce = Math.sqrt(Math.pow(data.gForceVector.x, 2) +
-            Math.pow(data.gForceVector.y, 2) +
-            Math.pow(data.gForceVector.z, 2));
-        if (velocity < 0.5 && gForce < 1.1)
-            return 'resting';
-        if (velocity < 2 && gForce < 1.3)
-            return 'light';
-        if (velocity < 5 && gForce < 1.5)
-            return 'moderate';
-        if (velocity < 10 && gForce < 2.0)
-            return 'intense';
-        return 'extreme';
-    }
-    generateHealthAlerts(data, heartRateAnalysis, stressLevel) {
-        const alerts = [];
-        // Heart rate alerts
-        if (data.heartRateBpm > 180) {
-            alerts.push('CRITICAL: Extremely elevated heart rate');
-        }
-        else if (data.heartRateBpm > 150) {
-            alerts.push('WARNING: Very high heart rate');
-        }
-        else if (data.heartRateBpm > 120) {
-            alerts.push('NOTICE: Elevated heart rate');
-        }
-        // Adrenaline alerts
-        if (data.adrenalineIndex > 0.9) {
-            alerts.push('CRITICAL: Maximum adrenaline levels detected');
-        }
-        else if (data.adrenalineIndex > 0.7) {
-            alerts.push('WARNING: High adrenaline levels');
-        }
-        // Stress alerts
-        if (stressLevel > this.stressThresholds.critical) {
-            alerts.push('CRITICAL: Extreme stress levels');
-        }
-        else if (stressLevel > this.stressThresholds.stressed) {
-            alerts.push('WARNING: High stress detected');
-        }
-        // G-force alerts
-        const gForce = Math.sqrt(Math.pow(data.gForceVector.x, 2) +
-            Math.pow(data.gForceVector.y, 2) +
-            Math.pow(data.gForceVector.z, 2));
-        if (gForce > 3.0) {
-            alerts.push('WARNING: High G-force detected');
-        }
-        else if (gForce > 5.0) {
-            alerts.push('CRITICAL: Dangerous G-force levels');
-        }
-        return alerts;
-    }
-    generateRecommendations(data, stressLevel, activityLevel) {
-        const recommendations = [];
-        if (stressLevel > this.stressThresholds.elevated) {
-            recommendations.push('Consider stress reduction techniques');
-            recommendations.push('Monitor for signs of burnout');
-        }
-        if (activityLevel === 'intense' || activityLevel === 'extreme') {
-            recommendations.push('Ensure adequate hydration');
-            recommendations.push('Monitor for overexertion');
-        }
-        if (data.heartRateBpm > 120 && activityLevel === 'resting') {
-            recommendations.push('Rest recommended - elevated heart rate at rest');
-        }
-        if (data.adrenalineIndex > 0.6) {
-            recommendations.push('Allow time for adrenaline levels to normalize');
-        }
-        if (recommendations.length === 0) {
-            recommendations.push('Continue normal activity monitoring');
-        }
-        return recommendations;
-    }
-    // Get comprehensive health status
-    getHealthStatus() {
+    getCurrentPhysiologicalState() {
         if (this.biometricHistory.length === 0) {
-            return {
-                overallHealth: 'good',
-                cardiovascularStatus: 'Insufficient data',
-                stressStatus: 'Insufficient data',
-                activityStatus: 'Insufficient data',
-                riskFactors: []
-            };
+            return { status: 'no_data' };
         }
         const latest = this.biometricHistory[this.biometricHistory.length - 1];
         const analysis = this.analyzeBiometrics(latest);
-        // Cardiovascular status
-        let cardiovascularStatus = 'Normal';
-        if (latest.heartRateBpm > 120)
-            cardiovascularStatus = 'Elevated';
-        if (latest.heartRateBpm > 150)
-            cardiovascularStatus = 'High';
-        if (latest.heartRateBpm > 180)
-            cardiovascularStatus = 'Critical';
-        // Stress status
-        let stressStatus = 'Low';
-        if (analysis.stressLevel > this.stressThresholds.normal)
-            stressStatus = 'Moderate';
-        if (analysis.stressLevel > this.stressThresholds.elevated)
-            stressStatus = 'High';
-        if (analysis.stressLevel > this.stressThresholds.stressed)
-            stressStatus = 'Severe';
-        // Activity status
-        const activityStatus = analysis.activityLevel.charAt(0).toUpperCase() + analysis.activityLevel.slice(1);
-        // Overall health assessment
-        let overallHealth = 'good';
-        if (analysis.currentStatus === 'critical')
-            overallHealth = 'critical';
-        else if (analysis.currentStatus === 'stressed')
-            overallHealth = 'fair';
-        else if (analysis.currentStatus === 'elevated')
-            overallHealth = 'good';
-        // Risk factors
-        const riskFactors = [];
-        if (cardiovascularStatus !== 'Normal')
-            riskFactors.push(cardiovascularStatus + ' heart rate');
-        if (stressStatus !== 'Low')
-            riskFactors.push('Elevated stress');
-        if (analysis.activityLevel === 'extreme')
-            riskFactors.push('Extreme activity');
         return {
-            overallHealth,
-            cardiovascularStatus,
-            stressStatus,
-            activityStatus,
-            riskFactors
+            heartRate: latest.heartRateBpm,
+            adrenaline: latest.adrenalineIndex,
+            status: analysis.currentStatus,
+            stressLevel: analysis.stressLevel,
+            alerts: analysis.healthAlerts
         };
-    }
-    // Get biometric history
-    getBiometricHistory(count = 50) {
-        return this.biometricHistory.slice(-count);
-    }
-    // Detect adrenaline spike
-    detectAdrenalineSpike() {
-        if (this.biometricHistory.length < 5)
-            return false;
-        const recent = this.biometricHistory.slice(-5);
-        const avgAdrenaline = recent.reduce((sum, data) => sum + data.adrenalineIndex, 0) / recent.length;
-        const current = recent[recent.length - 1].adrenalineIndex;
-        return current > avgAdrenaline * 1.5 && current > 0.5;
-    }
-    // Calibrate baseline heart rate
-    calibrateBaseline() {
-        if (this.biometricHistory.length < 30) {
-            console.log('[BIOMETRICS] Insufficient data for calibration (need 30+ samples)');
-            return;
-        }
-        const recent = this.biometricHistory.slice(-100);
-        const normalPeriods = recent.filter(data => data.heartRateBpm < 100);
-        if (normalPeriods.length > 20) {
-            this.baselineHeartRate = normalPeriods.reduce((sum, data) => sum + data.heartRateBpm, 0) / normalPeriods.length;
-            console.log(`[BIOMETRICS] Baseline calibrated to ${this.baselineHeartRate.toFixed(1)} BPM`);
-        }
     }
 }
 exports.biometricProcessor = new BiometricProcessor();

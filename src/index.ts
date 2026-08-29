@@ -15,6 +15,8 @@ import voiceRoutes from './routes/voice';
 import { knowledgeRegistry } from './core/registries/knowledgeRegistry';
 import { loadAllKnowledge } from './services/knowledgeStore';
 import { connectorManager } from './core/connectors/ConnectorManager';
+import { spatialProcessor } from './domains/spatial-perception/SpatialProcessor';
+import { biometricProcessor } from './domains/biometrics/BiometricProcessor';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -36,6 +38,53 @@ app.use(express.json({ limit: '10mb' }));
 // nothing owner-specific in the files), but every API route it calls is
 // gated behind requireOwner via the token the page asks you to paste in.
 app.use(express.static(path.join(process.cwd(), 'public')));
+
+// Neuro-agent telemetry endpoints for physical awareness
+app.post('/telemetry/spatial', requireOwner, async (req, res) => {
+  try {
+    const snapshot = spatialProcessor.processSpatialData(req.body);
+    const threatAssessment = spatialProcessor.assessThreats(snapshot);
+    
+    res.json({ 
+      success: true, 
+      snapshot,
+      threatAssessment 
+    });
+    
+    if (threatAssessment.hasThreats) {
+      console.log(`[NEURO-AGENT] Threat detected: ${threatAssessment.overallThreatLevel}`);
+    }
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.post('/telemetry/biometric', requireOwner, async (req, res) => {
+  try {
+    const biometric = biometricProcessor.processBiometricData(req.body);
+    const analysis = biometricProcessor.analyzeBiometrics(biometric);
+    
+    res.json({ 
+      success: true, 
+      biometric,
+      analysis 
+    });
+    
+    if (analysis.currentStatus === 'critical') {
+      console.log(`[NEURO-AGENT] Critical biometric status: ${analysis.healthAlerts.join(', ')}`);
+    }
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.get('/telemetry/status', requireOwner, (req, res) => {
+  res.json({
+    success: true,
+    spatial: spatialProcessor.getCurrentEnvironmentState(),
+    biometric: biometricProcessor.getCurrentPhysiologicalState()
+  });
+});
 
 // Favicon handler to prevent 404 errors
 app.get('/favicon.ico', (req, res) => {
@@ -99,6 +148,32 @@ async function processBackgroundLearning() {
       console.log('[MCGYVER] Neuro-agent performing knowledge consolidation...');
       // Future: Implement semantic clustering, relationship mapping, pattern recognition
     }
+
+    // Physical awareness processing - spatial and biometric analysis
+    const spatialHistory = spatialProcessor.getRecentSpatialHistory(5);
+    const biometricHistory = biometricProcessor.getBiometricHistory(10);
+    
+    if (spatialHistory.length > 0) {
+      console.log(`[NEURO-AGENT] Processing ${spatialHistory.length} spatial snapshots for environmental awareness`);
+      const latestSpatial = spatialHistory[spatialHistory.length - 1];
+      const threatAssessment = spatialProcessor.assessThreats(latestSpatial);
+      
+      if (threatAssessment.hasThreats) {
+        console.log(`[NEURO-AGENT] Environmental threat detected: ${threatAssessment.overallThreatLevel}`);
+        // Future: Integrate threat assessment into AI responses
+      }
+    }
+    
+    if (biometricHistory.length > 0) {
+      console.log(`[NEURO-AGENT] Processing ${biometricHistory.length} biometric samples for physiological awareness`);
+      const latestBiometric = biometricHistory[biometricHistory.length - 1];
+      const analysis = biometricProcessor.analyzeBiometrics(latestBiometric);
+      
+      if (analysis.currentStatus === 'critical') {
+        console.log(`[NEURO-AGENT] Critical physiological status: ${analysis.healthAlerts.join('. ')}`);
+        // Future: Adjust AI responses based on physiological state
+      }
+    }
     
     console.log(`[MCGYVER] Neuro-agent background processing completed`);
   } catch (error) {
@@ -127,9 +202,9 @@ function startBackgroundLearning() {
 }
 
 app.listen(PORT, async () => {
-  console.log(`[MCGYVER] Private assistant running on port ${PORT}`);
+  console.log(`[MCGYVER] Virtual Operational Robot running on port ${PORT}`);
   console.log(`[MCGYVER] Open http://localhost:${PORT} in your browser`);
-  console.log(`[MCGYVER] Neuro-agent: Virtual operational robot initialized`);
+  console.log(`[MCGYVER] Neuro-agent: Physically Aware System Initialized`);
 
   // No database dependency, so this runs immediately rather than waiting
   // behind the Mongo connection attempt below.
@@ -152,10 +227,10 @@ app.listen(PORT, async () => {
   // Start keepalive system
   startKeepalive();
   
-  // Start background learning (neuro-agent)
+  // Start background learning (neuro-agent with physical awareness)
   startBackgroundLearning();
   
-  console.log('[MCGYVER] All systems operational. Neuro-agent active and monitoring.');
+  console.log('[MCGYVER] All systems operational. Virtual Operational Robot active and monitoring environment.');
 });
 
 process.on('SIGTERM', () => {
