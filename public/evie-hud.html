@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evie AR HUD - Mc'Gyver Interface</title>
+    <style>
+        :root {
+            --hud-primary: #00f0ff;
+            --hud-secondary: #00ff88;
+            --hud-danger: #ff3333;
+            --hud-warning: #ffaa00;
+            --hud-bg: rgba(5, 15, 25, 0.85);
+            --hud-border: rgba(0, 240, 255, 0.4);
+            --hud-text: #e7e9ee;
+            --hud-text-dim: #8a90a2;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            color: var(--hud-text);
+            font-family: 'Courier New', monospace;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .ar-hud-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--hud-bg);
+            backdrop-filter: blur(10px);
+        }
+
+        .scanlines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 240, 255, 0.03) 0px,
+                rgba(0, 240, 255, 0.03) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .hud-frame {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border: 2px solid var(--hud-border);
+            box-shadow: inset 0 0 50px rgba(0, 240, 255, 0.1);
+        }
+
+        .hud-widget {
+            position: absolute;
+            background: rgba(0, 20, 30, 0.7);
+            border: 1px solid var(--hud-border);
+            border-radius: 4px;
+            padding: 10px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+        }
+
+        .widget-label {
+            font-size: 10px;
+            color: var(--hud-text-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+        }
+
+        .widget-value {
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 10px currentColor;
+        }
+
+        .widget-trend {
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .widget-trend.stable { color: var(--hud-secondary); }
+        .widget-trend.rising { color: var(--hud-danger); animation: pulse 1s infinite; }
+        .widget-trend.falling { color: var(--hud-primary); }
+        .widget-trend.irregular { color: var(--hud-warning); animation: flash 0.5s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .heart-rate-graph {
+            width: 100%;
+            height: 40px;
+            margin-top: 5px;
+        }
+
+        .threat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px;
+            margin: 3px 0;
+            background: rgba(0, 20, 30, 0.5);
+            border-left: 2px solid var(--hud-primary);
+        }
+
+        .threat-item.critical { border-left-color: var(--hud-danger); }
+        .threat-item.high { border-left-color: var(--hud-warning); }
+
+        .threat-icon { font-size: 16px; }
+        .threat-type { font-size: 11px; color: var(--hud-text); }
+        .threat-distance { font-size: 10px; color: var(--hud-text-dim); }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            margin: 3px 0;
+        }
+
+        .metric-label { color: var(--hud-text-dim); }
+        .metric-value { color: var(--hud-primary); }
+
+        .alert {
+            background: rgba(20, 0, 10, 0.9);
+            border: 2px solid var(--hud-danger);
+            box-shadow: 0 0 30px rgba(255, 51, 51, 0.5);
+        }
+
+        .alert-header {
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 10px;
+            animation: alertPulse 1s infinite;
+        }
+
+        @keyframes alertPulse {
+            0%, 100% { text-shadow: 0 0 10px currentColor; }
+            50% { text-shadow: 0 0 20px currentColor; }
+        }
+
+        .alert-body {
+            font-size: 12px;
+            line-height: 1.4;
+            margin-bottom: 10px;
+        }
+
+        .alert-dismiss {
+            background: var(--hud-danger);
+            color: #000;
+            border: none;
+            padding: 5px 15px;
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .corner-decoration {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--hud-primary);
+        }
+
+        .corner-decoration.top-left {
+            top: 10px;
+            left: 10px;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .corner-decoration.top-right {
+            top: 10px;
+            right: 10px;
+            border-left: none;
+            border-bottom: none;
+        }
+
+        .corner-decoration.bottom-left {
+            bottom: 10px;
+            left: 10px;
+            border-right: none;
+            border-top: none;
+        }
+
+        .corner-decoration.bottom-right {
+            bottom: 10px;
+            right: 10px;
+            border-left: none;
+            border-top: none;
+        }
+
+        .status-bar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            font-size: 11px;
+            color: var(--hud-text-dim);
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--hud-secondary);
+            animation: statusPulse 2s infinite;
+        }
+
+        @keyframes statusPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .connection-status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 10px;
+            color: var(--hud-text-dim);
+        }
+
+        .connection-status.connected {
+            color: var(--hud-secondary);
+        }
+
+        .demo-controls {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 20, 30, 0.9);
+            border: 1px solid var(--hud-border);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            z-index: 2000;
+        }
+
+        .demo-controls h2 {
+            color: var(--hud-primary);
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .demo-controls button {
+            background: var(--hud-primary);
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            margin: 5px;
+            font-family: inherit;
+            font-size: 12px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .demo-controls button:hover {
+            background: var(--hud-secondary);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="ar-hud-container">
+        <div class="scanlines"></div>
+        <div class="hud-frame">
+            <!-- Corner decorations -->
+            <div class="corner-decoration top-left"></div>
+            <div class="corner-decoration top-right"></div>
+            <div class="corner-decoration bottom-left"></div>
+            <div class="corner-decoration bottom-right"></div>
+
+            <!-- Connection status -->
+            <div class="connection-status" id="connectionStatus">EVIE SYSTEM: DISCONNECTED</div>
+
+            <!-- Default widgets will be injected here -->
+            <div id="widgetContainer"></div>
+
+            <!-- Status bar -->
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="status-dot"></div>
+                    <span>NEURO-AGENT ACTIVE</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot"></div>
+                    <span>SPATIAL AWARENESS</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot"></div>
+                    <span>BIOMETRIC MONITORING</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Demo controls -->
+    <div class="demo-controls" id="demoControls">
+        <h2>EVIE AR HUD - DEMO MODE</h2>
+        <button onclick="simulateHeartRate()">Simulate Heart Rate</button>
+        <button onclick="simulateThreat()">Simulate Threat</button>
+        <button onclick="simulateSystemStatus()">System Status</button>
+        <button onclick="dismissDemo()">Enter Live Mode</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const widgetContainer = document.getElementById('widgetContainer');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const demoControls = document.getElementById('demoControls');
+
+        // Connection status
+        socket.on('connect', () => {
+            connectionStatus.textContent = 'EVIE SYSTEM: CONNECTED';
+            connectionStatus.classList.add('connected');
+            console.log('[EVIE] Connected to Mc\'Gyver');
+        });
+
+        socket.on('disconnect', () => {
+            connectionStatus.textContent = 'EVIE SYSTEM: DISCONNECTED';
+            connectionStatus.classList.remove('connected');
+        });
+
+        // Device registration
+        socket.emit('register_device', {
+            deviceType: 'ar_glasses',
+            capabilities: ['ar_display', 'spatial_input', 'biometric_display']
+        });
+
+        // Telemetry events
+        socket.on('telemetry_event', (event) => {
+            console.log('[EVIE] Telemetry event:', event);
+            handleTelemetryEvent(event);
+        });
+
+        // Device registration confirmation
+        socket.on('device_registered', (data) => {
+            console.log('[EVIE] Device registered:', data);
+        });
+
+        function handleTelemetryEvent(event) {
+            switch (event.eventType) {
+                case 'HUD_STATE_MUTATION':
+                    handleHUDUpdate(event.payload);
+                    break;
+                case 'BIOMETRIC_UPDATE':
+                    handleBiometricUpdate(event.payload);
+                    break;
+                case 'SPATIAL_DETECTION':
+                    handleSpatialUpdate(event.payload);
+                    break;
+                case 'SYSTEM_STATUS':
+                    handleSystemStatus(event.payload);
+                    break;
+            }
+        }
+
+        function handleHUDUpdate(payload) {
+            if (payload.widget) {
+                updateWidget(payload.widget);
+            } else if (payload.alertBox) {
+                showAlert(payload.alertBox);
+            } else if (payload.theme) {
+                setTheme(payload.theme);
+            } else if (payload.opacity !== undefined) {
+                setOpacity(payload.opacity);
+            }
+        }
+
+        function handleBiometricUpdate(payload) {
+            // Update heart rate widget
+            const heartRateWidget = document.getElementById('heart_rate_monitor');
+            if (heartRateWidget && payload.heartRateBpm) {
+                updateHeartRateWidget(payload.heartRateBpm, payload.adrenalineIndex);
+            }
+        }
+
+        function handleSpatialUpdate(payload) {
+            // Update threat detection widget
+            const threatWidget = document.getElementById('threat_detection');
+            if (threatWidget && payload.detectedObjects) {
+                updateThreatWidget(payload.detectedObjects);
+            }
+        }
+
+        function handleSystemStatus(payload) {
+            const statusWidget = document.getElementById('system_status');
+            if (statusWidget) {
+                updateSystemStatusWidget(payload);
+            }
+        }
+
+        function updateWidget(widgetData) {
+            let widget = document.getElementById(widgetData.id);
+            
+            if (!widgetData.visible) {
+                if (widget) widget.remove();
+                return;
+            }
+
+            if (!widget) {
+                widget = createWidgetElement(widgetData);
+                widgetContainer.appendChild(widget);
+            }
+
+            // Update widget content based on type
+            if (widgetData.type === 'heart_rate') {
+                updateHeartRateWidgetElement(widget, widgetData.data);
+            } else if (widgetData.type === 'threat_detection') {
+                updateThreatWidgetElement(widget, widgetData.data);
+            } else if (widgetData.type === 'system_status') {
+                updateSystemStatusWidgetElement(widget, widgetData.data);
+            } else if (widgetData.type === 'alert') {
+                updateAlertWidgetElement(widget, widgetData.data);
+            }
+        }
+
+        function createWidgetElement(widgetData) {
+            const widget = document.createElement('div');
+            widget.id = widgetData.id;
+            widget.className = 'hud-widget';
+            widget.style.left = (widgetData.position.x * 100) + '%';
+            widget.style.top = (widgetData.position.y * 100) + '%';
+            widget.style.width = (widgetData.size.width * 100) + '%';
+            widget.style.height = (widgetData.size.height * 100) + '%';
+            widget.style.zIndex = getPriorityZIndex(widgetData.priority);
+            return widget;
+        }
+
+        function updateHeartRateWidgetElement(widget, data) {
+            const color = getHeartRateColor(data.currentBPM);
+            widget.innerHTML = `
+                <div class="widget-label">HEART RATE</div>
+                <div class="widget-value" style="color: ${color}">
+                    ${data.currentBPM || '--'} BPM
+                </div>
+                <div class="widget-trend ${data.trend || 'stable'}">
+                    ${data.trend ? data.trend.toUpperCase() : 'STABLE'}
+                </div>
+                <div class="heart-rate-graph">
+                    ${generateHeartRateGraph(data.currentBPM, data.trend)}
+                </div>
+            `;
+        }
+
+        function updateThreatWidgetElement(widget, data) {
+            const color = getThreatColor(data.overallStatus);
+            const threatsHTML = (data.threats || []).map(threat => `
+                <div class="threat-item ${threat.severity || 'low'}">
+                    <div class="threat-icon">${getThreatIcon(threat.type)}</div>
+                    <div class="threat-info">
+                        <div class="threat-type">${threat.type || 'Unknown'}</div>
+                        <div class="threat-distance">${threat.distance ? threat.distance + 'm' : '--'}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            widget.innerHTML = `
+                <div class="widget-label">THREAT ANALYSIS</div>
+                <div class="widget-status" style="color: ${color}">
+                    ${data.overallStatus?.toUpperCase() || 'SCANNING'}
+                </div>
+                <div class="threat-list">
+                    ${threatsHTML || '<div class="no-threats">No threats detected</div>'}
+                </div>
+            `;
+        }
+
+        function updateSystemStatusWidgetElement(widget, data) {
+            const color = data.status === 'operational' ? '#00ff88' : '#ffaa00';
+            widget.innerHTML = `
+                <div class="widget-label">SYSTEM STATUS</div>
+                <div class="widget-status" style="color: ${color}">
+                    ${data.status?.toUpperCase() || 'OPERATIONAL'}
+                </div>
+                <div class="widget-metrics">
+                    <div class="metric">
+                        <span class="metric-label">UPTIME:</span>
+                        <span class="metric-value">${formatUptime(data.uptime || 0)}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">DEVICES:</span>
+                        <span class="metric-value">${data.devices || 0}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateAlertWidgetElement(widget, data) {
+            const color = getSeverityColor(data.severity);
+            widget.className = 'hud-widget alert';
+            widget.style.borderColor = color;
+            widget.innerHTML = `
+                <div class="alert-header" style="color: ${color}">
+                    ${data.header?.toUpperCase() || 'ALERT'}
+                </div>
+                <div class="alert-body">
+                    ${data.body || ''}
+                </div>
+                <button class="alert-dismiss" onclick="dismissAlert('${widget.id}')">
+                    DISMISS
+                </button>
+            `;
+        }
+
+        function showAlert(alertData) {
+            const alertWidget = {
+                id: 'alert_' + Date.now(),
+                type: 'alert',
+                position: { x: 0.5, y: 0.5 },
+                size: { width: 0.4, height: 0.3 },
+                priority: alertData.visible && alertData.colorHex === '#ff3333' ? 'critical' : 'high',
+                visible: alertData.visible,
+                data: alertData
+            };
+            updateWidget(alertWidget);
+        }
+
+        function dismissAlert(alertId) {
+            socket.emit('hud_command', {
+                action: 'dismiss_alert',
+                params: { alertId }
+            });
+            const widget = document.getElementById(alertId);
+            if (widget) widget.remove();
+        }
+
+        // Demo functions
+        function simulateHeartRate() {
+            const bpm = Math.floor(Math.random() * 60) + 80; // 80-140 BPM
+            const trend = Math.random() > 0.5 ? 'rising' : 'stable';
+            const widget = {
+                id: 'heart_rate_monitor',
+                type: 'heart_rate',
+                position: { x: 0.02, y: 0.02 },
+                size: { width: 0.25, height: 0.15 },
+                priority: 'medium',
+                visible: true,
+                data: { currentBPM: bpm, trend }
+            };
+            updateWidget(widget);
+        }
+
+        function simulateThreat() {
+            const threats = [
+                { type: 'unknown', distance: Math.floor(Math.random() * 20) + 5, severity: 'medium' }
+            ];
+            const widget = {
+                id: 'threat_detection',
+                type: 'threat_detection',
+                position: { x: 0.73, y: 0.02 },
+                size: { width: 0.25, height: 0.20 },
+                priority: 'high',
+                visible: true,
+                data: { threats, overallStatus: 'medium' }
+            };
+            updateWidget(widget);
+            
+            showAlert({
+                visible: true,
+                header: 'THREAT DETECTED',
+                body: 'Unknown object detected at proximity',
+                colorHex: '#ffaa00'
+            });
+        }
+
+        function simulateSystemStatus() {
+            const widget = {
+                id: 'system_status',
+                type: 'system_status',
+                position: { x: 0.02, y: 0.85 },
+                size: { width: 0.20, height: 0.12 },
+                priority: 'low',
+                visible: true,
+                data: { uptime: Math.floor(Math.random() * 3600), devices: 3, status: 'operational' }
+            };
+            updateWidget(widget);
+        }
+
+        function dismissDemo() {
+            demoControls.classList.add('hidden');
+            // Load default widgets
+            loadDefaultWidgets();
+        }
+
+        function loadDefaultWidgets() {
+            const defaultWidgets = [
+                {
+                    id: 'heart_rate_monitor',
+                    type: 'heart_rate',
+                    position: { x: 0.02, y: 0.02 },
+                    size: { width: 0.25, height: 0.15 },
+                    priority: 'medium',
+                    visible: true,
+                    data: { currentBPM: 72, trend: 'stable' }
+                },
+                {
+                    id: 'threat_detection',
+                    type: 'threat_detection',
+                    position: { x: 0.73, y: 0.02 },
+                    size: { width: 0.25, height: 0.20 },
+                    priority: 'high',
+                    visible: true,
+                    data: { threats: [], overallStatus: 'none' }
+                },
+                {
+                    id: 'system_status',
+                    type: 'system_status',
+                    position: { x: 0.02, y: 0.85 },
+                    size: { width: 0.20, height: 0.12 },
+                    priority: 'low',
+                    visible: true,
+                    data: { uptime: 0, devices: 1, status: 'operational' }
+                }
+            ];
+
+            defaultWidgets.forEach(widget => updateWidget(widget));
+        }
+
+        // Utility functions
+        function getPriorityZIndex(priority) {
+            switch (priority) {
+                case 'critical': return 1000;
+                case 'high': return 800;
+                case 'medium': return 600;
+                case 'low': return 400;
+                default: return 500;
+            }
+        }
+
+        function getHeartRateColor(bpm) {
+            if (bpm > 180) return '#ff3333';
+            if (bpm > 150) return '#ff6633';
+            if (bpm > 120) return '#ffaa00';
+            if (bpm > 100) return '#ffcc00';
+            if (bpm < 60) return '#00aaff';
+            return '#00ff88';
+        }
+
+        function getThreatColor(status) {
+            switch (status?.toLowerCase()) {
+                case 'critical': return '#ff3333';
+                case 'high': return '#ff6633';
+                case 'medium': return '#ffaa00';
+                case 'low': return '#ffcc00';
+                default: return '#00f0ff';
+            }
+        }
+
+        function getThreatIcon(type) {
+            const icons = {
+                'hostile': '⚠️',
+                'threat': '⚡',
+                'danger': '☢️',
+                'weapon': '🔫',
+                'fire': '🔥',
+                'proximity': '📍',
+                'unknown': '❓'
+            };
+            return icons[type?.toLowerCase()] || '⚠️';
+        }
+
+        function getSeverityColor(severity) {
+            switch (severity) {
+                case 'critical': return '#ff3333';
+                case 'warning': return '#ffaa00';
+                case 'info': return '#00f0ff';
+                default: return '#00f0ff';
+            }
+        }
+
+        function formatUptime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            return `${hours}h ${minutes}m`;
+        }
+
+        function generateHeartRateGraph(bpm, trend) {
+            const points = [];
+            const baseline = 70;
+            const currentHeight = Math.min(100, (bpm / 180) * 100);
+            
+            for (let i = 0; i < 20; i++) {
+                const x = (i / 19) * 100;
+                const variation = Math.sin(i * 0.5) * 10;
+                const y = 50 + variation + (i === 19 ? (currentHeight - 50) : 0);
+                points.push(`${x},${y}`);
+            }
+
+            return `
+                <svg viewBox="0 0 100 50" class="heart-rate-graph">
+                    <polyline
+                        points="${points.join(' ')}"
+                        fill="none"
+                        stroke="${getHeartRateColor(bpm)}"
+                        stroke-width="2"
+                    />
+                    <circle cx="100" cy="${50 + Math.sin(19 * 0.5) * 10 + (currentHeight - 50)}" r="3" fill="${getHeartRateColor(bpm)}" />
+                </svg>
+            `;
+        }
+
+        function updateHeartRateWidget(bpm, adrenaline) {
+            const widget = {
+                id: 'heart_rate_monitor',
+                type: 'heart_rate',
+                position: { x: 0.02, y: 0.02 },
+                size: { width: 0.25, height: 0.15 },
+                priority: 'medium',
+                visible: true,
+                data: { currentBPM: bpm, trend: 'stable' }
+            };
+            updateWidget(widget);
+        }
+
+        function updateThreatWidget(threats) {
+            const widget = {
+                id: 'threat_detection',
+                type: 'threat_detection',
+                position: { x: 0.73, y: 0.02 },
+                size: { width: 0.25, height: 0.20 },
+                priority: 'high',
+                visible: true,
+                data: { threats, overallStatus: threats.length > 0 ? 'medium' : 'none' }
+            };
+            updateWidget(widget);
+        }
+
+        function updateSystemStatusWidget(data) {
+            const widget = {
+                id: 'system_status',
+                type: 'system_status',
+                position: { x: 0.02, y: 0.85 },
+                size: { width: 0.20, height: 0.12 },
+                priority: 'low',
+                visible: true,
+                data
+            };
+            updateWidget(widget);
+        }
+
+        function setTheme(theme) {
+            console.log('[EVIE] Theme set to:', theme);
+            // Theme implementation would go here
+        }
+
+        function setOpacity(opacity) {
+            document.querySelector('.ar-hud-container').style.opacity = opacity;
+        }
+
+        // Initialize with demo controls visible
+        console.log('[EVIE] AR HUD interface loaded');
+    </script>
+</body>
+</html>

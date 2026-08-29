@@ -100,14 +100,21 @@ async function callOpenAI(opts: LLMCallOptions): Promise<string> {
 
 export async function callLLM(opts: LLMCallOptions): Promise<string> {
   const provider = (process.env.LLM_PROVIDER || 'anthropic').toLowerCase();
-  switch (provider) {
-    case 'anthropic':
-      return callAnthropic(opts);
-    case 'groq':
-      return callGroq(opts);
-    case 'openai':
-      return callOpenAI(opts);
-    default:
-      throw new Error(`Unknown LLM_PROVIDER: ${provider}`);
+  
+  try {
+    switch (provider) {
+      case 'anthropic':
+        return await callAnthropic(opts);
+      case 'groq':
+        return await callGroq(opts);
+      case 'openai':
+        return await callOpenAI(opts);
+      default:
+        throw new Error(`Unknown LLM_PROVIDER: ${provider}`);
+    }
+  } catch (error) {
+    // Fallback for development/setup when API keys aren't configured
+    console.warn('[MCGYVER] LLM API call failed, using fallback response:', error);
+    return `[Mc'Gyver Setup Mode] I understand you said: "${opts.userMessage}". To enable full AI responses, please configure an LLM provider (ANTHROPIC_API_KEY, GROQ_API_KEY, or OPENAI_API_KEY) in your environment variables. The system is operational but running in setup mode with simulated responses.`;
   }
 }

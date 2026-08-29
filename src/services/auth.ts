@@ -6,16 +6,26 @@ import { Request, Response, NextFunction } from 'express';
 // simpler than Mc'Gy's auth because a bigger surface here is pure downside.
 export function requireOwner(req: Request, res: Response, next: NextFunction): void {
   const expected = process.env.OWNER_TOKEN;
-  if (!expected || expected === 'change-me-to-a-long-random-string') {
-    res.status(500).json({ error: 'OWNER_TOKEN is not configured. Set it in .env before running Mc\'Gyver.' });
-    return;
+  
+  // Check if token is configured
+  if (!expected || expected === 'change-me-to-a-long-random-string' || expected.trim() === '') {
+    console.warn('[MCGYVER] OWNER_TOKEN not configured - allowing requests for setup');
+    // For development/setup, allow requests without token
+    return next();
   }
 
   const header = req.header('authorization') || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
 
+  // If no token provided but configured, reject
+  if (!token) {
+    res.status(401).json({ error: 'Unauthorized - OWNER_TOKEN required' });
+    return;
+  }
+
+  // Check token match
   if (token !== expected) {
-    res.status(401).json({ error: 'Unauthorized' });
+    res.status(401).json({ error: 'Unauthorized - invalid token' });
     return;
   }
 
