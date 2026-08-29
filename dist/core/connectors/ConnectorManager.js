@@ -6,7 +6,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.connectorManager = exports.ConnectorManager = void 0;
 const toolRegistry_1 = require("../registries/toolRegistry");
-const filesConnector_1 = require("../../domains/automation/filesConnector");
+const filesConnector_1 = require("../../services/filesConnector");
 class ConnectorManager {
     registerAll() {
         (0, filesConnector_1.registerFilesConnector)();

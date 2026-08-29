@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const taskStore_1 = require("../services/taskStore");
-const taskManager_1 = require("../domains/tasks/taskManager");
+const taskManager_1 = require("../services/taskManager");
 const router = (0, express_1.Router)();
 router.get('/tasks', async (_req, res) => {
     const tasks = await (0, taskStore_1.loadAllTasks)();

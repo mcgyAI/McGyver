@@ -1,22 +1,13 @@
 import { OWNER_SYSTEM_PROMPT } from '../registries/promptRegistry';
 import { knowledgeRegistry } from '../registries/knowledgeRegistry';
 import { callLLM, ChatMessage } from '../../services/llm';
-import { planner, looksTaskRelated } from '../planner/Planner';
-import { executeTaskAction } from '../../domains/tasks/taskActions';
 import { looksToolRelated, classifyToolCall, executeToolCall } from './toolRouting';
 
-// Three checks in order, cheapest/most specific first:
-// 1. Task intent -> Planner -> deterministic reply, no general LLM call
-// 2. Tool/connector intent -> run the tool -> hand result back to the LLM
+// Two checks in order, cheapest/most specific first:
+// 1. Tool/connector intent -> run the tool -> hand result back to the LLM
 //    once so the reply reads naturally instead of dumping raw output
-// 3. Otherwise: ordinary chat, with knowledge-base context if relevant
+// 2. Otherwise: ordinary chat, with knowledge-base context if relevant
 export async function route(message: string, history: ChatMessage[]): Promise<string> {
-  if (looksTaskRelated(message)) {
-    const plan = await planner.plan(message);
-    if (plan.action !== 'none') {
-      return executeTaskAction(plan);
-    }
-  }
 
   if (looksToolRelated(message)) {
     const toolPlan = await classifyToolCall(message);

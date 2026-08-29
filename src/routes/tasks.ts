@@ -1,6 +1,6 @@
 import { Router as ExpressRouter } from 'express';
 import { loadAllTasks } from '../services/taskStore';
-import { createTask, completeTaskById } from '../domains/tasks/taskManager';
+import { createTask, completeTaskById } from '../services/taskManager';
 
 const router = ExpressRouter();
 

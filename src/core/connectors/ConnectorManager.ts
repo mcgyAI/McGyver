@@ -4,7 +4,7 @@
 // else in the system needs to change.
 
 import { toolRegistry } from '../registries/toolRegistry';
-import { registerFilesConnector } from '../../domains/automation/filesConnector';
+import { registerFilesConnector } from '../../services/filesConnector';
 
 export class ConnectorManager {
   registerAll(): void {
