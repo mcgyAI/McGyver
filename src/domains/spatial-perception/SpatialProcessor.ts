@@ -6,6 +6,18 @@ export interface SpatialSnapshot {
   gazeTargetCoords: { x: number; y: number };
 }
 
+/**
+ * Compatibility shape for physical-awareness clients that submit a spatial
+ * reading before it has been normalised into a SpatialSnapshot.  Keeping this
+ * separate from the stored snapshot lets AR clients remain typed without
+ * pretending that browser-originated values are already validated telemetry.
+ */
+export interface SpatialData {
+  detectedObjects?: DetectedObject[];
+  ambientLightLux?: number;
+  gazeTargetCoords?: { x: number; y: number };
+}
+
 export interface DetectedObject {
   label: string;
   confidence: number;
