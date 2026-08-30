@@ -7,11 +7,11 @@ import { Request, Response, NextFunction } from 'express';
 export function requireOwner(req: Request, res: Response, next: NextFunction): void {
   const expected = process.env.OWNER_TOKEN;
   
-  // Check if token is configured
+  // A public deployment must fail closed when its owner secret is missing.
   if (!expected || expected === 'change-me-to-a-long-random-string' || expected.trim() === '') {
-    console.warn('[MCGYVER] OWNER_TOKEN not configured - allowing requests for setup');
-    // For development/setup, allow requests without token
-    return next();
+    console.error('[MCGYVER] OWNER_TOKEN is not configured - denying private API access');
+    res.status(503).json({ error: 'Private access is not configured' });
+    return;
   }
 
   const header = req.header('authorization') || '';

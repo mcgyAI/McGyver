@@ -125,7 +125,11 @@ function startKeepalive() {
 }
 
 // Background learning and neuro-agent processing
-const ENABLE_BACKGROUND_LEARNING = process.env.ENABLE_BACKGROUND_LEARNING === 'true';
+// Enabled by default. Set ENABLE_BACKGROUND_LEARNING=false only for an
+// intentional maintenance/debug session; the operational agent should not
+// silently stop its local maintenance loop because an environment variable
+// was omitted during deployment.
+const ENABLE_BACKGROUND_LEARNING = process.env.ENABLE_BACKGROUND_LEARNING !== 'false';
 const BACKGROUND_PROCESSING_INTERVAL = parseInt(process.env.BACKGROUND_PROCESSING_INTERVAL || '600', 10); // 10 minutes default
 let backgroundTimer: NodeJS.Timeout | null = null;
 
